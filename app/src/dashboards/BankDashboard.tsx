@@ -103,7 +103,7 @@ export default function BankDashboard({ activeSection = 'scanner' }: BankDashboa
 
   const { data: stats, loading: loadingStats, refetch: refetchStats } = useApiFetch(() => statsApi.getInstitutional());
   const { data: shgDirectory, loading: loadingDirectory } = useApiFetch(() => statsApi.getSHGDirectory());
-  const { data: ledger } = useApiPolling(() => statsApi.getLedger(), 6000);
+  const { data: ledger, refetch: refetchLedger } = useApiPolling(() => statsApi.getLedger(), 6000);
   const { mutate: verifyTx, loading: verifyingTx } = useApiMutation((txHash: string) => qrApi.verify(txHash));
   const { mutate: approveGrant, loading: approvingGrant } = useApiMutation((_input: null) => statsApi.approveGrant());
 
@@ -164,10 +164,16 @@ export default function BankDashboard({ activeSection = 'scanner' }: BankDashboa
       const res = await approveGrant(null);
       toast.success(res.message || 'Grant approved');
       refetchStats();
+      refetchLedger();
     } catch {
       toast.error('Grant approval failed');
     }
   };
+
+  const grantLedger = useMemo(
+    () => (ledger || []).filter((entry: any) => entry.category === 'grant'),
+    [ledger],
+  );
 
   const handleCycleFilter = () => {
     const order: Array<'all' | 'IMMUTABLE_OK' | 'PENDING_AUDIT' | 'FLAGGED'> = ['all', 'IMMUTABLE_OK', 'PENDING_AUDIT', 'FLAGGED'];
@@ -230,6 +236,65 @@ export default function BankDashboard({ activeSection = 'scanner' }: BankDashboa
                   {entry.amount !== 0 && (
                     <div className={`text-sm font-bold flex-shrink-0 ${entry.amount > 0 ? 'text-shg-secondary' : 'text-shg-error'}`}>
                       {entry.amount > 0 ? '+' : ''}₹{Math.abs(entry.amount).toLocaleString('en-IN')}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeSection === 'grants') {
+    return (
+      <div className="p-6 lg:p-10 max-w-6xl mx-auto space-y-6">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-shg-primary mb-2">Institution Grants</p>
+          <h2 className="text-2xl font-black font-headline text-on-surface">Grant Approval & Logs</h2>
+          <p className="text-sm text-muted-foreground mt-2">Approve grants and monitor immutable grant disbursement records in real time.</p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-border/50 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase">Total Grants Approved</p>
+            <p className="text-2xl font-black font-headline text-shg-primary mt-1">{loadingStats ? '...' : stats?.activeGrants}</p>
+          </div>
+          <button
+            onClick={handleApproveGrant}
+            disabled={approvingGrant}
+            className="bg-shg-secondary text-white px-5 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity shadow-md active:scale-95 disabled:opacity-60"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            {approvingGrant ? 'Approving...' : 'Approve New Grant'}
+          </button>
+        </div>
+
+        <div className="bg-white border border-border/50 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold font-headline">Grant Approval Log</h3>
+            <button
+              onClick={refetchLedger}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-surface hover:bg-surface/80"
+            >
+              Refresh Log
+            </button>
+          </div>
+          <div className="space-y-3">
+            {grantLedger.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No grant approvals logged yet. Approve a grant to populate this feed.</p>
+            ) : (
+              grantLedger.map((entry: any) => (
+                <div key={entry.id} className="flex gap-4 items-start p-3 rounded-lg hover:bg-surface transition-colors border border-border/30">
+                  <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0 bg-shg-secondary" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">{entry.event}</p>
+                    <p className="text-xs text-muted-foreground">TX: {entry.txId} · {timeAgo(entry.timestamp)}</p>
+                  </div>
+                  {entry.amount !== 0 && (
+                    <div className="text-sm font-bold flex-shrink-0 text-shg-secondary">
+                      +₹{Math.abs(entry.amount).toLocaleString('en-IN')}
                     </div>
                   )}
                 </div>

@@ -60,9 +60,12 @@ router.get('/treasury', protect, authorize('leader', 'bank'), async (_req: Reque
 
 // GET /api/stats/institutional
 router.get('/institutional', protect, authorize('bank'), async (_req: Request, res: Response) => {
-  const [memberCount, loanTxCount, treasury, repaymentAgg] = await Promise.all([
+  const [memberCount, grantTxCount, treasury, repaymentAgg] = await Promise.all([
     User.countDocuments({ role: 'member' }),
-    Transaction.countDocuments({ type: 'loan_disbursement', status: { $ne: 'failed' } }),
+    Transaction.countDocuments({
+      status: { $ne: 'failed' },
+      'metadata.source': 'stats.grants.approve',
+    }),
     getTreasurySnapshot(),
     User.aggregate([
       { $match: { role: 'member' } },
@@ -76,7 +79,7 @@ router.get('/institutional', protect, authorize('bank'), async (_req: Request, r
     success: true,
     data: {
       registeredSHGs: memberCount > 0 ? Math.max(1, Math.ceil(memberCount / 25)) : 0,
-      activeGrants: loanTxCount,
+      activeGrants: grantTxCount,
       regionalLiquidity: treasury.totalLiquidity,
       trustIndex: treasury.trustScore,
       verifiedMembers: memberCount,
@@ -131,10 +134,14 @@ router.get('/ledger', protect, authorize('leader', 'bank'), async (_req: Request
 
   const ledger = txs.map((tx: any) => ({
     id: String(tx._id),
-    event: `${tx.type}: ${tx.user?.name || 'Member'}`,
+    event: tx.metadata?.source === 'stats.grants.approve'
+      ? `grant_disbursement: ${tx.user?.name || 'Member'}`
+      : `${tx.type}: ${tx.user?.name || 'Member'}`,
     txId: tx.transactionId ? `${tx.transactionId.slice(0, 12)}...` : `TX-${String(tx._id).slice(-6)}`,
     amount: ['deposit', 'yield', 'loan_repayment'].includes(tx.type) ? tx.amount : -Math.abs(tx.amount),
     type: ['deposit', 'yield', 'loan_repayment'].includes(tx.type) ? 'credit' : 'debit',
+    category: tx.metadata?.source === 'stats.grants.approve' ? 'grant' : 'general',
+    description: tx.description,
     timestamp: tx.createdAt,
   }));
 
