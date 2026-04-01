@@ -1,0 +1,14 @@
+{
+  "name": "saheli-workspace",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently -k -n backend,app -c cyan,magenta \"npm --prefix backend run dev\" \"npm --prefix app run dev\"",
+    "build": "npm --prefix backend run build && npm --prefix app run build",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:app": "npm --prefix app run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
