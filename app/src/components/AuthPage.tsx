@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Verified, Landmark, Users, Eye, EyeOff, ArrowRight,
-  Phone, Lock, User, ShieldCheck, Loader2, Link2
+  Phone, Lock, User, ShieldCheck, Loader2
 } from 'lucide-react';
 
 type Role = 'member' | 'leader' | 'bank';
@@ -105,10 +105,6 @@ export default function AuthPage({ onSuccess }: AuthPageProps) {
   const fillDemo = () => {
     setForm(f => ({ ...f, phone: selectedRole.demoPhone, password: 'demo1234' }));
     toast.info('Demo credentials filled!');
-  };
-
-  const handlePeraAuth = () => {
-    toast.info('Sign in first. Wallet connection is available from the dashboard profile menu.');
   };
 
   return (
@@ -284,15 +280,6 @@ export default function AuthPage({ onSuccess }: AuthPageProps) {
                   )}
                 </button>
               </div>
-
-              <button
-                type="button"
-                onClick={handlePeraAuth}
-                className="w-full mt-1 border border-white/30 text-white py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-white/10 transition-all"
-              >
-                <Link2 className="w-4 h-4" />
-                Connect Pera Wallet (After Login)
-              </button>
 
             </form>
 
