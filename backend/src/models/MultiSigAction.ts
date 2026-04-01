@@ -12,7 +12,7 @@ const multiSigActionSchema = new mongoose.Schema(
     amount: { type: Number, required: true },
     requestedBy: { type: String, required: true },
     signatures: { type: [String], default: [] },
-    signaturesRequired: { type: Number, default: 3 },
+    signaturesRequired: { type: Number, default: 1 },
     status: { type: String, enum: ['pending', 'executed', 'rejected'], default: 'pending' },
     isEmergency: { type: Boolean, default: false },
     linkedLoanId: { type: String },

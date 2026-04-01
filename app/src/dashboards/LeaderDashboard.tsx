@@ -97,8 +97,8 @@ export default function LeaderDashboard({ isReadOnly = false, activeSection = 't
       setActionMessages(prev => ({ ...prev, [id]: res.message }));
       toast.success(res.message);
       refetchActions();
-    } catch {
-      toast.error('Could not sign — is the API running?');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not sign action');
     }
   };
 
@@ -120,8 +120,8 @@ export default function LeaderDashboard({ isReadOnly = false, activeSection = 't
       toast.success(res.message);
       refetchVaults();
       refetchAgentLog();
-    } catch {
-      toast.error('Could not deploy funds — is the API running?');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not deploy funds');
     }
     setInvesting(false);
   }, [refetchVaults, refetchAgentLog]);
@@ -133,8 +133,8 @@ export default function LeaderDashboard({ isReadOnly = false, activeSection = 't
       toast.success(res.message);
       refetchVaults();
       refetchAgentLog();
-    } catch {
-      toast.error('Could not harvest yield — is the API running?');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not harvest yield');
     }
     setHarvesting(false);
   }, [refetchVaults, refetchAgentLog]);
@@ -523,7 +523,12 @@ export default function LeaderDashboard({ isReadOnly = false, activeSection = 't
               <p className="font-bold text-on-surface">All clear! No pending approvals.</p>
             </div>
           ) : (
-            (pendingActions || []).map((action: any) => (
+            (pendingActions || []).map((action: any) => {
+              const required = Math.max(1, Number(action.signaturesRequired) || 1);
+              const signed = Math.min(required, Number(action.signatures?.length) || 0);
+              const pct = (signed / required) * 100;
+
+              return (
               <div key={action.id} className={`dashboard-card bg-white p-6 rounded-2xl border-l-4 border border-border/50 ${action.isEmergency ? 'border-l-red-500' : 'border-l-shg-primary'}`}>
                 {action.isEmergency && (
                   <div className="flex items-center gap-2 mb-3 px-3 py-1.5 bg-red-50 border border-red-100 rounded-lg w-fit">
@@ -553,12 +558,12 @@ export default function LeaderDashboard({ isReadOnly = false, activeSection = 't
                     <div className="w-full md:w-64 space-y-3">
                       <div className="flex justify-between text-xs font-bold text-muted-foreground">
                         <span>APPROVAL PROGRESS</span>
-                        <span>{action.signatures.length}/{action.signaturesRequired} APPROVED</span>
+                        <span>{signed}/{required} APPROVED</span>
                       </div>
                       <div className="h-2 bg-surface rounded-full overflow-hidden">
                         <div
                           className="h-full bg-shg-primary rounded-full transition-all duration-500"
-                          style={{ width: `${(action.signatures.length / action.signaturesRequired) * 100}%` }}
+                          style={{ width: `${pct}%` }}
                         />
                       </div>
                       {isReadOnly ? (
@@ -584,7 +589,7 @@ export default function LeaderDashboard({ isReadOnly = false, activeSection = 't
                   </div>
                 </div>
               </div>
-            ))
+            )})
           )}
         </div>
 

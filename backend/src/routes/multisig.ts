@@ -17,7 +17,7 @@ function mapDocToAction(doc: any) {
     amount: doc.amount,
     requestedBy: doc.requestedBy,
     signatures: doc.signatures || [],
-    signaturesRequired: doc.signaturesRequired,
+    signaturesRequired: 1,
     status: doc.status,
     createdAt: doc.createdAt,
     transactionId: doc.transactionId,
@@ -48,6 +48,9 @@ router.post('/:id/sign', protect, authorize('leader'), async (req: Request, res:
     res.status(400).json({ success: false, error: `Action is already ${action.status}` });
     return;
   }
+
+  // Keep leader approvals single-step for hackathon flow and legacy data compatibility.
+  action.signaturesRequired = 1;
 
   const signerId = req.body.signerId || `leader_${uuidv4().slice(0, 4)}`;
   if (!action.signatures.includes(signerId)) {
@@ -146,7 +149,7 @@ router.post('/', protect, authorize('leader'), async (req: Request, res: Respons
     amount: amount || 0,
     requestedBy: requestedBy || 'AI Agent',
     signatures: [],
-    signaturesRequired: signaturesRequired || 3,
+    signaturesRequired: signaturesRequired || 1,
     status: 'pending',
     createdAt: new Date().toISOString(),
     linkedLoanId,

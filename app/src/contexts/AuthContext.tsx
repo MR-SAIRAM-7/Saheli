@@ -18,6 +18,7 @@ interface AuthContextType {
   walletAddress: string | null;
   loading: boolean;
   connectPeraWallet: () => Promise<string>;
+  disconnectPeraWallet: () => Promise<void>;
   login: (phone: string, password: string) => Promise<AuthUser>;
   register: (body: { name: string; phone?: string; password: string; role: string; shgId?: string; walletAddress?: string }) => Promise<AuthUser>;
   logout: () => void;
@@ -148,6 +149,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return wallet;
   };
 
+  const disconnectPeraWallet = async (): Promise<void> => {
+    try {
+      await peraWallet.disconnect();
+    } catch {
+      // Ignore disconnect SDK errors and clear local state regardless.
+    }
+
+    setWalletAddress(null);
+    localStorage.removeItem('saheli-wallet-address');
+
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      delete next.walletAddress;
+      localStorage.setItem('saheli-user', JSON.stringify(next));
+      return next;
+    });
+  };
+
   const logout = () => {
     void peraWallet.disconnect();
     localStorage.removeItem('saheli-token');
@@ -165,6 +185,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         walletAddress,
         loading,
         connectPeraWallet,
+        disconnectPeraWallet,
         login,
         register,
         logout,

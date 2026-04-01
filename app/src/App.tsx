@@ -111,7 +111,7 @@ function App() {
     return (
       <>
         <AutoTranslate />
-        <Toaster position="top-right" richColors duration={2200} />
+        <Toaster position="top-right" richColors duration={1200} />
         <AuthPage onSuccess={handleAuthSuccess} />
       </>
     );
@@ -124,7 +124,7 @@ function App() {
     return (
       <div className="min-h-screen bg-surface">
         <AutoTranslate />
-        <Toaster position="top-right" richColors duration={2200} />
+        <Toaster position="top-right" richColors duration={1200} />
         <TopNav
           currentRole={safeRole}
           authRole={authRole}
@@ -156,7 +156,7 @@ function App() {
   return (
     <div className="min-h-screen bg-surface">
       <AutoTranslate />
-      <Toaster position="top-right" richColors duration={2200} />
+      <Toaster position="top-right" richColors duration={1200} />
       <TopNav />
       <HeroSection onRoleSelect={handleRoleSelectFromHero} onOpenWhatsApp={() => setShowWhatsAppDemo(true)} />
       <HowItWorks />

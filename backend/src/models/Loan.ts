@@ -18,7 +18,7 @@ const loanSchema = new mongoose.Schema(
     
     // Approval workflow
     approvals: { type: Number, default: 0 },
-    approvalsRequired: { type: Number, default: 3 },
+    approvalsRequired: { type: Number, default: 1 },
     
     // Lifecycle
     disbursedAt: { type: Date },

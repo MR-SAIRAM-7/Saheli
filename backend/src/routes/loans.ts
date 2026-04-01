@@ -65,7 +65,7 @@ function mapLoan(doc: any) {
     aiRecommendation: doc.aiRecommendation,
     aiReason: doc.aiReason,
     approvals: doc.approvals,
-    approvalsRequired: doc.approvalsRequired,
+    approvalsRequired: 1,
     disbursedAt: doc.disbursedAt,
     dueDate: doc.dueDate,
     repaidAmount: doc.repaidAmount,
@@ -166,7 +166,7 @@ router.post('/request', protect, authorize('member'), async (req: AuthRequest, r
   }
 
   const evaluation = evaluateLoan(member.trustScore || 700, normalizedAmount, String(purpose));
-  const approvalsRequired = evaluation.fastTrack ? 1 : 3;
+  const approvalsRequired = 1;
 
   const loan = await LoanModel.create({
     user: member._id,
@@ -227,6 +227,9 @@ router.post('/:id/approve', protect, authorize('leader'), async (req: Request, r
     res.status(400).json({ success: false, error: `Loan is already ${loan.status}` });
     return;
   }
+
+  // Enforce one-time approval for all leader flows, including legacy records.
+  loan.approvalsRequired = 1;
 
   loan.approvals += 1;
 

@@ -23,7 +23,7 @@ export default function TopNav({ currentRole, onOpenAIAssistant, onSignOut, onSe
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [lastOpenedAt, setLastOpenedAt] = useState(0);
   const [walletConnecting, setWalletConnecting] = useState(false);
-  const { user, walletAddress, connectPeraWallet } = useAuth();
+  const { user, walletAddress, connectPeraWallet, disconnectPeraWallet } = useAuth();
 
   const roleLabels: Record<UserRole, string> = {
     member: 'Member',
@@ -68,6 +68,17 @@ export default function TopNav({ currentRole, onOpenAIAssistant, onSignOut, onSe
       toast.error(message);
     } finally {
       setWalletConnecting(false);
+    }
+  };
+
+  const handleDisconnectWallet = async () => {
+    try {
+      await disconnectPeraWallet();
+      toast.success('Pera wallet disconnected');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to disconnect wallet');
+    } finally {
+      setShowProfileMenu(false);
     }
   };
 
@@ -163,17 +174,27 @@ export default function TopNav({ currentRole, onOpenAIAssistant, onSignOut, onSe
                   {currentRole ? roleLabels[currentRole] : 'Guest User'}
                 </p>
                 {user && (
-                  <button
-                    onClick={handleConnectWallet}
-                    disabled={walletConnecting}
-                    className="w-full text-left px-2 py-2 rounded-lg text-sm font-semibold text-shg-primary hover:bg-shg-primary/10 transition-colors disabled:opacity-60"
-                  >
-                    {walletConnecting
-                      ? 'Connecting wallet...'
-                      : walletAddress
-                        ? `Wallet: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-                        : 'Connect Pera Wallet'}
-                  </button>
+                  <>
+                    <button
+                      onClick={handleConnectWallet}
+                      disabled={walletConnecting || !!walletAddress}
+                      className="w-full text-left px-2 py-2 rounded-lg text-sm font-semibold text-shg-primary hover:bg-shg-primary/10 transition-colors disabled:opacity-60"
+                    >
+                      {walletConnecting
+                        ? 'Connecting wallet...'
+                        : walletAddress
+                          ? `Wallet: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+                          : 'Connect Pera Wallet'}
+                    </button>
+                    {walletAddress && (
+                      <button
+                        onClick={handleDisconnectWallet}
+                        className="w-full text-left px-2 py-2 rounded-lg text-sm font-semibold text-amber-700 hover:bg-amber-50 transition-colors"
+                      >
+                        Disconnect Wallet
+                      </button>
+                    )}
+                  </>
                 )}
                 {onSignOut && (
                   <button
