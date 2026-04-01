@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Verified, Landmark, Users, Eye, EyeOff, ArrowRight,
-  Phone, Lock, User, ShieldCheck, Loader2
+  Phone, Lock, User, ShieldCheck, Loader2, Link2
 } from 'lucide-react';
 
 type Role = 'member' | 'leader' | 'bank';

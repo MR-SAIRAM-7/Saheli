@@ -17,6 +17,14 @@ function normalizeWalletAddress(address: string): string {
   return address.trim().toUpperCase();
 }
 
+function shouldAllowWalletReassign(): boolean {
+  const raw = (process.env.ALLOW_WALLET_REASSIGN || '').trim().toLowerCase();
+  if (raw) {
+    return ['1', 'true', 'yes', 'on'].includes(raw);
+  }
+  return process.env.NODE_ENV !== 'production';
+}
+
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const { name, phone, password, role, shgId } = req.body;
@@ -161,8 +169,15 @@ router.post('/wallet/link', protect, async (req: any, res: Response) => {
 
     const existingWalletOwner = await User.findOne({ walletAddress: normalizedWallet }).select('_id');
     if (existingWalletOwner && String(existingWalletOwner._id) !== String(req.user._id)) {
-      res.status(400).json({ success: false, error: 'Wallet is already linked to another user' });
-      return;
+      if (!shouldAllowWalletReassign()) {
+        res.status(400).json({ success: false, error: 'Wallet is already linked to another user' });
+        return;
+      }
+
+      await User.updateOne(
+        { _id: existingWalletOwner._id },
+        { $unset: { walletAddress: 1, peraConnectedAt: 1 } },
+      );
     }
 
     const user = await User.findById(req.user._id);

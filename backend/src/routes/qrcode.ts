@@ -1,12 +1,18 @@
 import { Router, Request, Response } from 'express';
 import QRCode from 'qrcode';
-import { verifyTransaction, executeOnChainRecord } from '../services/txEngine';
+import { verifyTransaction, executeOnChainRecord, generateTxHash } from '../services/txEngine';
 import { sendQRCodeWhatsAppReceipt } from '../services/whatsapp';
 import mongoose from 'mongoose';
 import User from '../models/User';
 import { protect } from '../middleware/auth';
 
 const router = Router();
+
+function isQrWhatsAppEnabled(): boolean {
+  const raw = (process.env.QR_SEND_WHATSAPP || '').trim().toLowerCase();
+  if (!raw) return false;
+  return ['1', 'true', 'yes', 'on'].includes(raw);
+}
 
 // POST /api/qr/generate
 router.post('/generate', protect, async (req: Request, res: Response) => {
@@ -18,13 +24,14 @@ router.post('/generate', protect, async (req: Request, res: Response) => {
       memberPhone,
       amount,
       type,
-      autoSendWhatsApp = true,
+      autoSendWhatsApp = false,
     } = req.body;
 
     let resolvedMemberName = memberName;
     let resolvedPhone = memberPhone;
     let resolvedMemberWalletAddress: string | null | undefined;
     let hash = transactionId;
+    let anchoredOnChain = true;
 
     if ((!resolvedMemberName || !resolvedPhone) && memberId && mongoose.Types.ObjectId.isValid(memberId)) {
       const member = await User.findById(memberId).select('name phone role walletAddress').lean();
@@ -36,21 +43,26 @@ router.post('/generate', protect, async (req: Request, res: Response) => {
     }
 
     if (!hash) {
-      const chain = await executeOnChainRecord({
-        type: 'qr_anchor',
-        amount: Number(amount || 0),
-        description: `QR proof anchor for ${type || 'deposit'}`,
-        memberId,
-        memberName: resolvedMemberName,
-        memberWalletAddress: resolvedMemberWalletAddress,
-        recipientWalletAddress: resolvedMemberWalletAddress,
-        metadata: {
-          source: 'qr.generate',
-          qrType: type || 'deposit',
-        },
-        forceValueTransfer: false,
-      });
-      hash = chain.transactionId;
+      try {
+        const chain = await executeOnChainRecord({
+          type: 'qr_anchor',
+          amount: Number(amount || 0),
+          description: `QR proof anchor for ${type || 'deposit'}`,
+          memberId,
+          memberName: resolvedMemberName,
+          memberWalletAddress: resolvedMemberWalletAddress,
+          recipientWalletAddress: resolvedMemberWalletAddress,
+          metadata: {
+            source: 'qr.generate',
+            qrType: type || 'deposit',
+          },
+          forceValueTransfer: false,
+        });
+        hash = chain.transactionId;
+      } catch {
+        anchoredOnChain = false;
+        hash = generateTxHash();
+      }
     }
 
     const qrPayload = JSON.stringify({
@@ -90,7 +102,7 @@ router.post('/generate', protect, async (req: Request, res: Response) => {
       sent: false,
     };
 
-    if (autoSendWhatsApp && targetPhone) {
+    if (isQrWhatsAppEnabled() && autoSendWhatsApp && targetPhone) {
       whatsapp.attempted = true;
       try {
         const delivery = await sendQRCodeWhatsAppReceipt({
@@ -126,11 +138,16 @@ router.post('/generate', protect, async (req: Request, res: Response) => {
         whatsapp,
         message: whatsapp.sent
           ? 'QR proof generated and sent to member on WhatsApp.'
-          : 'QR proof generated. Share this with any bank officer to verify.',
+          : anchoredOnChain
+            ? 'QR proof generated. Share this with any bank officer to verify.'
+            : 'QR proof generated in local mode (on-chain anchoring unavailable).',
+        anchoredOnChain,
+        qrWhatsAppEnabled: isQrWhatsAppEnabled(),
       },
     });
-  } catch (_err) {
-    res.status(500).json({ success: false, error: 'QR generation failed' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'QR generation failed';
+    res.status(500).json({ success: false, error: message });
   }
 });
 

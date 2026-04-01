@@ -22,6 +22,14 @@ type LifecycleRecord = {
 
 const txLifecycleStore = new Map<string, LifecycleRecord>();
 
+function shouldUseDemoChainFallback(): boolean {
+  const raw = (process.env.DEMO_CHAIN_FALLBACK || '').trim().toLowerCase();
+  if (raw) {
+    return ['1', 'true', 'yes', 'on'].includes(raw);
+  }
+  return process.env.NODE_ENV !== 'production';
+}
+
 function normalizeType(type?: string): LedgerRecordType {
   if (type === 'deposit') return 'deposit';
   if (type === 'withdrawal') return 'withdrawal';
@@ -45,17 +53,40 @@ export async function executeOnChainRecord(params: {
   metadata?: Record<string, unknown>;
   forceValueTransfer?: boolean;
 }) {
-  const submitted = await submitLedgerRecord({
-    type: normalizeType(params.type),
-    amount: params.amount,
-    description: params.description,
-    memberId: params.memberId,
-    memberName: params.memberName,
-    memberWalletAddress: params.memberWalletAddress,
-    recipientWalletAddress: params.recipientWalletAddress,
-    metadata: params.metadata,
-    forceValueTransfer: params.forceValueTransfer,
-  });
+  let submitted:
+    | {
+        txId: string;
+        explorerUrl: string;
+        confirmedRound: number;
+        network: 'testnet' | 'mainnet' | 'betanet' | 'localnet';
+      }
+    | undefined;
+
+  try {
+    submitted = await submitLedgerRecord({
+      type: normalizeType(params.type),
+      amount: params.amount,
+      description: params.description,
+      memberId: params.memberId,
+      memberName: params.memberName,
+      memberWalletAddress: params.memberWalletAddress,
+      recipientWalletAddress: params.recipientWalletAddress,
+      metadata: params.metadata,
+      forceValueTransfer: params.forceValueTransfer,
+    });
+  } catch (error) {
+    if (!shouldUseDemoChainFallback()) {
+      throw error;
+    }
+
+    const txId = generateTxHash();
+    submitted = {
+      txId,
+      explorerUrl: '',
+      confirmedRound: 0,
+      network: 'testnet',
+    };
+  }
 
   txLifecycleStore.set(submitted.txId, {
     transactionId: submitted.txId,

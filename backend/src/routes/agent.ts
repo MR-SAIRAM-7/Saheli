@@ -48,49 +48,63 @@ router.get('/vaults', protect, authorize('leader', 'bank'), (_req: Request, res:
 
 // POST /api/agent/invest — trigger idle fund deployment
 router.post('/invest', protect, authorize('leader'), async (req: Request, res: Response) => {
-  const { amount } = req.body;
-  const status = getAgentStatus();
+  try {
+    const { amount } = req.body;
+    const status = getAgentStatus();
 
-  if (status.idleFunds < 1000) {
-    res.status(400).json({
-      success: false,
-      error: 'Insufficient idle funds to deploy (minimum ₹1,000)',
+    if (status.idleFunds < 1000) {
+      res.status(400).json({
+        success: false,
+        error: 'Insufficient idle funds to deploy (minimum ₹1,000)',
+      });
+      return;
+    }
+
+    const deployAmount = amount ? Math.min(amount, status.idleFunds) : status.idleFunds;
+    const result = await deployIdleFunds(deployAmount);
+
+    console.log(`[Agent] Deployed ₹${deployAmount.toLocaleString('en-IN')} to ${result.vault.protocol}`);
+
+    res.json({
+      success: true,
+      data: {
+        vault: result.vault,
+        logEntry: result.logEntry,
+        newIdleFunds: result.newIdleFunds,
+        message: `🤖 Agent deployed ₹${deployAmount.toLocaleString('en-IN')} to ${result.vault.protocol} at ${result.vault.apy}% APY`,
+      },
     });
-    return;
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error?.message || 'Failed to deploy idle funds',
+    });
   }
-
-  const deployAmount = amount ? Math.min(amount, status.idleFunds) : status.idleFunds;
-  const result = await deployIdleFunds(deployAmount);
-
-  console.log(`[Agent] Deployed ₹${deployAmount.toLocaleString('en-IN')} to ${result.vault.protocol}`);
-
-  res.json({
-    success: true,
-    data: {
-      vault: result.vault,
-      logEntry: result.logEntry,
-      newIdleFunds: result.newIdleFunds,
-      message: `🤖 Agent deployed ₹${deployAmount.toLocaleString('en-IN')} to ${result.vault.protocol} at ${result.vault.apy}% APY`,
-    },
-  });
 });
 
 // POST /api/agent/harvest — harvest accumulated yield
 router.post('/harvest', protect, authorize('leader'), async (req: Request, res: Response) => {
-  const { vaultId } = req.body;
-  const result = await harvestYield(vaultId);
+  try {
+    const { vaultId } = req.body;
+    const result = await harvestYield(vaultId);
 
-  console.log(`[Agent] Harvested ₹${result.harvested.toLocaleString('en-IN')} yield`);
+    console.log(`[Agent] Harvested ₹${result.harvested.toLocaleString('en-IN')} yield`);
 
-  res.json({
-    success: true,
-    data: {
-      harvested: result.harvested,
-      logEntry: result.logEntry,
-      newIdleFunds: getAgentStatus().idleFunds,
-      message: `✅ Harvested ₹${result.harvested.toLocaleString('en-IN')} yield. Added to treasury.`,
-    },
-  });
+    res.json({
+      success: true,
+      data: {
+        harvested: result.harvested,
+        logEntry: result.logEntry,
+        newIdleFunds: getAgentStatus().idleFunds,
+        message: `✅ Harvested ₹${result.harvested.toLocaleString('en-IN')} yield. Added to treasury.`,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error?.message || 'Failed to harvest yield',
+    });
+  }
 });
 
 // POST /api/agent/emergency-loan — agentic emergency loan flow

@@ -94,7 +94,7 @@ export default function MemberDashboard({ activeSection = 'passport', onOpenAIAs
 
   const { user } = useAuth();
   const { language, setLanguage, t, languages, getLanguageLabel } = useLanguage();
-  const memberId = user?._id || 'm1'; // fallback to m1 only if no user (shouldn't happen)
+  const memberId = user?._id;
 
   useEffect(() => {
     const saved = loadMemberSettings(memberId);
@@ -110,8 +110,24 @@ export default function MemberDashboard({ activeSection = 'passport', onOpenAIAs
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
 
-  const { data: rawMember, loading, error, refetch: refetchMember } = useApiFetch(() => membersApi.getById(memberId));
-  const { data: passport, refetch: refetchPassport } = useApiFetch(() => membersApi.getPassport(memberId), [memberId]);
+  const { data: rawMember, loading, error, refetch: refetchMember } = useApiFetch(
+    () => {
+      if (!memberId) {
+        throw new Error('User session not ready');
+      }
+      return membersApi.getById(memberId);
+    },
+    [memberId],
+  );
+  const { data: passport, refetch: refetchPassport } = useApiFetch(
+    () => {
+      if (!memberId) {
+        throw new Error('User session not ready');
+      }
+      return membersApi.getPassport(memberId);
+    },
+    [memberId],
+  );
   const { data: repayments } = useApiFetch(() => agentApi.getRepayments());
 
   // If it's a real MongoDB user newly registered, they might lack these fields from mockData
@@ -133,6 +149,10 @@ export default function MemberDashboard({ activeSection = 'passport', onOpenAIAs
   }, [rawMember, passport]);
 
   const handleMintPassport = async () => {
+    if (!memberId) {
+      toast.error('User session not ready. Please try again.');
+      return;
+    }
     setPassportBusy(true);
     try {
       await membersApi.mintPassport(memberId);
@@ -146,6 +166,10 @@ export default function MemberDashboard({ activeSection = 'passport', onOpenAIAs
   };
 
   const handleRefreshPassport = async () => {
+    if (!memberId) {
+      toast.error('User session not ready. Please try again.');
+      return;
+    }
     setPassportBusy(true);
     try {
       await membersApi.refreshPassport(memberId, 'member_dashboard_refresh');
@@ -183,17 +207,11 @@ export default function MemberDashboard({ activeSection = 'passport', onOpenAIAs
         memberName: member?.name,
         memberPhone: user?.phone,
         type: 'identity',
-        autoSendWhatsApp: true,
+        autoSendWhatsApp: false,
       });
       setQrData(qr);
       setShowQR(true);
-      if (qr?.whatsapp?.sent) {
-        toast.success('QR generated and sent to your WhatsApp');
-      } else if (qr?.whatsapp?.attempted && !qr?.whatsapp?.sent) {
-        toast.warning(`QR generated, but WhatsApp send failed: ${qr?.whatsapp?.error || 'check Twilio/Cloudinary config'}`);
-      } else {
-        toast.success('QR Proof generated!');
-      }
+      toast.success('QR Proof generated!');
     } catch {
       toast.error('Could not generate QR — is the API running?');
     }

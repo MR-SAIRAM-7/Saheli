@@ -223,8 +223,11 @@ export async function deployIdleFunds(amount?: number): Promise<{
     throw new Error('DeFi deployment is disabled by runtime safety toggle');
   }
 
-  const maxDeployable = Math.max(0, agentState.idleFunds - runtime.minIdleBuffer);
-  const deployAmount = Math.max(0, Math.min(amount || Math.min(maxDeployable, runtime.maxDeployment), maxDeployable, runtime.maxDeployment));
+  // In hackathon/demo simulated mode, allow full idle deployment to avoid dead-ends from safety buffer math.
+  const effectiveMinBuffer = runtime.liveMode ? runtime.minIdleBuffer : 0;
+  const maxDeployable = Math.max(0, agentState.idleFunds - effectiveMinBuffer);
+  const requested = amount || Math.min(maxDeployable, runtime.maxDeployment);
+  const deployAmount = Math.max(0, Math.min(requested, maxDeployable, runtime.maxDeployment));
   if (deployAmount < 1000) {
     throw new Error('Insufficient deployable idle funds after safety buffer');
   }
